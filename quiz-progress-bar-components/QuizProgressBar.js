@@ -1,6 +1,6 @@
 // Класс ничего не решает сам за пределами своей DOM-зоны (обёртка прогресса, полоса, счётчик, кнопка назад) и не вызывает методы навигации напрямую — взаимодействие с QuizNavigation происходит только через координатора: update(step) вызывается им при каждой смене шага (видимость/слот/кнопка назад), updateProgressBar(current, total) — отдельно, координатор сам считает эти числа (с учётом возможных карточных под-шагов внутри страницы), этот класс их просто отображает. Единственное самостоятельное решение класса — РЕЖИМ СЧЁТЧИКА (параметр counter: 'fraction' → "1/17" или 'percent' → "6%"), который читается из разметки (или задаётся в конструкторе).
 
-// Режим счётчика ПРОГРЕСС-БАРА: 'fraction' — "1/17", 'percent' — "6%".
+// Режим счётчика ПРОГРЕСС-БАРА: 'fraction' — "1/17", 'percent' — "6%", 'both' - оба.
 // Назван counter, чтобы не путать с процентами ЛОАДЕРА (data-percent-loader) —
 // у лоадера своё 0→100 за N мс, у бара — доля пройденных шагов.
 // Источник: параметр counter в конструкторе, иначе data-progress-counter
@@ -55,7 +55,7 @@ export default class QuizProgressBar {
 
         this.hasProgressBar = !!this.bar;
 
-        this.backButton = this.wrapper?.querySelector(backButtonSelector);
+        this.backButton = this.wrapper?.querySelector(backButtonSelector)?? document.querySelector(backButtonSelector);;
 
         this.currentElement = this.wrapper?.querySelector(currentSelector);
         this.totalElement = this.wrapper?.querySelector(totalSelector);
