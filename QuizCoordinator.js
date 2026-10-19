@@ -39,7 +39,7 @@ export default class QuizCoordinator {
         }
 
         this.#quizProgressBar.update(newStep);
-        this.#updateProgress(newStep);
+        this.#syncUI(newStep);
 
         this.#quizTimers.handleStepChange(newStep, prevStep);
         this.#quizValidation.handleStepChange();
@@ -100,7 +100,6 @@ export default class QuizCoordinator {
     ];
 
     this.#quizProgressBar = new QuizProgressBar({
-      steps: this.steps,
       onBackClick: () => this.#goBack(),
     });
 
@@ -122,7 +121,7 @@ export default class QuizCoordinator {
     );
 
     this.#quizProgressBar.update(this.#quizNavigation.currentStep);
-    this.#updateProgress(this.#quizNavigation.currentStep);
+    this.#syncUI(this.#quizNavigation.currentStep);
     this.#quizTimers.handleStepChange(this.#quizNavigation.currentStep, null);
 
     document.addEventListener("click", (evt) => {
@@ -130,6 +129,7 @@ export default class QuizCoordinator {
       if (!restartBtn) return;
 
       this.#quizNavigation.goTo(0);
+      this.#activeCardStack?.goTo(0);
       this.#quizValidation.reset();
     });
   }
@@ -146,7 +146,7 @@ export default class QuizCoordinator {
     return new QuizNavigation({
       steps: cards,
       onStepChange: () => {
-        this.#updateProgress(step);
+       this.#syncUI(step);
       },
     });
   }
@@ -226,5 +226,26 @@ export default class QuizCoordinator {
 
   disableScroll() {
     this.#scrollEnabled = false;
+  }
+
+  #updateBackButton() {
+    const page = this.#quizNavigation.currentStep;
+
+    let visible;
+
+    if (page.dataset.hideBack === 'true') {
+      visible = false;                                   // шаги, где кнопка не нужна
+    } else if (this.#activeCardStack && !this.#activeCardStack.isFirstStep) {
+      visible = true;                                    // назад можно на предыдущую карточку
+    } else {
+      visible = !this.#quizNavigation.isFirstStep;       // иначе на предыдущую страницу
+    }
+
+    this.#quizProgressBar.setBackButtonVisible(visible);
+  }
+
+  #syncUI(step) {
+    this.#updateProgress(step);
+    this.#updateBackButton();
   }
 }

@@ -18,7 +18,6 @@ export default class QuizProgressBar {
     #hasNumbers = false;
 
     constructor({
-        steps,
         progressElement = PROGRESS_WRAPPER_SELECTOR,
         progressBarSelector = '[data-js-pagination-progress]',
         backButtonSelector = '[data-js-pagination-back]',
@@ -31,31 +30,32 @@ export default class QuizProgressBar {
         onBackClick
     }) {
 
-        this.steps = Array.from(steps);
         this.slotSelector = slotSelector;
         this.onBackClick = onBackClick;
 
+
+
         // Общая обертка прогресс бара
-        // Если ее нет, то выходим из работы класса полностью
         this.wrapper = document.querySelector(progressElement);
-        this.isEnabled = !!this.wrapper;
+        this.isWrapper = !!this.wrapper;
+
+        this.backButton = this.wrapper?.querySelector(backButtonSelector) ?? document.querySelector(backButtonSelector);
+        this.backButton?.addEventListener('click', () => this.onBackClick?.());
 
         // Режим счётчика: явный параметр > data-progress-counter на обёртке > 'fraction'
         this.counter =
             counter ?? (this.wrapper?.dataset.progressCounter || 'fraction');
 
-        if (!this.isEnabled) {
-            console.warn('No progress bar was found.');
+        if (!this.isWrapper) {
+            console.info('No progress bar was found.');
             return;
         }
 
-        this.bar = this.wrapper
-            ? this.wrapper.querySelector(progressBarSelector)
-            : document.querySelector(progressBarSelector);
+        this.bar = this.wrapper.querySelector(progressBarSelector);
 
         this.hasProgressBar = !!this.bar;
 
-        this.backButton = this.wrapper?.querySelector(backButtonSelector)?? document.querySelector(backButtonSelector);;
+
 
         this.currentElement = this.wrapper?.querySelector(currentSelector);
         this.totalElement = this.wrapper?.querySelector(totalSelector);
@@ -73,16 +73,15 @@ export default class QuizProgressBar {
             this.wrapper.after(this.defaultAnchor);
         }
 
-        this.backButton?.addEventListener('click', () => this.onBackClick?.());
+
     }
 
-    // Видимость / кнопка назад / слот — не зависит от чисел прогресса,
+    // Видимость / слот — не зависит от чисел прогресса,
     // вызывается координатором при каждой смене ВЕРХНЕУРОВНЕВОГО шага
     update(step) {
-        if (!this.isEnabled) return;
+        if (!this.isWrapper) return;
 
         this.#updateVisibility(step);
-        this.#updateBackButton(step);
         this.#moveToCurrentSlot(step);
     }
 
@@ -93,7 +92,7 @@ export default class QuizProgressBar {
     // Как именно числа подаются ('fraction' → "1/17" или 'percent' → "6%")
     // решает this.counter, единственный рендер — в #render().
     updateProgressBar(current, total) {
-        if (!this.isEnabled) return;
+        if (!this.isWrapper) return;
 
         this.#render(current, total);
     }
@@ -122,9 +121,13 @@ export default class QuizProgressBar {
     setCounter(value) {
         this.counter = value;
 
-        if (this.isEnabled && this.#hasNumbers) {
+        if (this.isWrapper && this.#hasNumbers) {
             this.#render(this.#lastCurrent, this.#lastTotal);
         }
+    }
+
+    setBackButtonVisible(visible) {
+      this.backButton?.classList.toggle('hidden', !visible);
     }
 
     #render(current, total) {
@@ -195,11 +198,5 @@ export default class QuizProgressBar {
         const shouldHide = currentStepEl?.dataset.hideProgress === 'true';
 
         this.wrapper.classList.toggle('quiz-progress--hidden', shouldHide);
-    }
-
-    #updateBackButton(step) {
-        if (!this.backButton) return;
-
-        this.backButton.classList.toggle('hidden', step === this.steps[0]);
     }
 }
