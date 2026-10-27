@@ -1,6 +1,6 @@
-ОБНОВЛЕНИЕ 19.10.2026
+ОБНОВЛЕНИЕ 27.10.2026
 	
-Updated hide/show feature back button
+v2 Updated hide/show feature back button
 
 
 
