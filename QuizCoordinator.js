@@ -145,8 +145,8 @@ export default class QuizCoordinator {
 
     return new QuizNavigation({
       steps: cards,
-      onStepChange: () => {
-       this.#syncUI(step);
+      onStepChange: (newCard, prevCard) => {
+        this.#syncUI(step);
       },
     });
   }

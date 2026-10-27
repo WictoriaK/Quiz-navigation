@@ -16,6 +16,7 @@ export default class QuizProgressBar {
     #lastCurrent = 0;
     #lastTotal = 0;
     #hasNumbers = false;
+    #boundBackHandler = null;
 
     constructor({
         progressElement = PROGRESS_WRAPPER_SELECTOR,
@@ -40,7 +41,17 @@ export default class QuizProgressBar {
         this.isWrapper = !!this.wrapper;
 
         this.backButton = this.wrapper?.querySelector(backButtonSelector) ?? document.querySelector(backButtonSelector);
-        this.backButton?.addEventListener('click', () => this.onBackClick?.());
+
+        // Event delegation для кнопки "Назад" — работает с любой кнопкой [data-js-pagination-back]
+        // в текущем активном шаге (как в QuizValidation)
+        this.#boundBackHandler = (evt) => {
+            const backBtn = evt.target.closest(backButtonSelector);
+            if (backBtn) {
+                console.log('[QuizProgressBar] backButton clicked (delegated), calling onBackClick');
+                this.onBackClick?.();
+            }
+        };
+        document.addEventListener('click', this.#boundBackHandler);
 
         // Режим счётчика: явный параметр > data-progress-counter на обёртке > 'fraction'
         this.counter =
@@ -73,9 +84,7 @@ export default class QuizProgressBar {
             this.wrapper.after(this.defaultAnchor);
         }
 
-
     }
-
     // Видимость / слот — не зависит от чисел прогресса,
     // вызывается координатором при каждой смене ВЕРХНЕУРОВНЕВОГО шага
     update(step) {
