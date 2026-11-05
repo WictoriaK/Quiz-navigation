@@ -144,7 +144,7 @@ export default class QuizValidation {
     // Случай 1 — клик пришёлся прямо на инпут (или на элемент внутри
     // него/его обёртки, являющейся предком инпута в DOM)
     const direct = target.closest("[data-js-quiz-input]");
-    if (direct) return direct;
+    if (direct) return this.#resolveNativeInput(direct);
 
     // Случай 2 — клик пришёлся на что-то внутри <label for="...">,
     // не являющееся предком инпута (например, соседний <span> с текстом)
@@ -152,11 +152,9 @@ export default class QuizValidation {
     if (!label) return null;
 
     const related = document.getElementById(label.getAttribute("for"));
-    if (related && related.matches("[data-js-quiz-input]")) {
-      return related;
-    }
 
-    return null;
+    return related && related.matches("[data-js-quiz-input]") ? related : null;
+
   }
 
   #inputStateBeforeClick = new WeakMap();

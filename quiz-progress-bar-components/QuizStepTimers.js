@@ -2,8 +2,8 @@ import {CONTINUE_BTN_SELECTOR} from './QuizValidation.js';
 
 export default class QuizStepTimers{
   constructor({
-    steps,
-    behaviors = []}){
+                steps,
+                behaviors = []}){
 
     this.steps = Array.from(steps);
     this.behaviors = behaviors; // список { match, handle }, переданный координатором
