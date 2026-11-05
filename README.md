@@ -1,7 +1,6 @@
-ОБНОВЛЕНИЕ 27.10.2026
+ОБНОВЛЕНИЕ 05.11.2026
 	
-v2 Updated hide/show feature back button
-
+fixed vue components reset button back click
 
 
 
