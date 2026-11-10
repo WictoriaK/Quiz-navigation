@@ -1,6 +1,6 @@
-ОБНОВЛЕНИЕ 05.11.2026
+ОБНОВЛЕНИЕ 10.11.2026
 	
-fixed vue components reset button back click
+Added stages in progress bar
 
 
 
