@@ -4,6 +4,7 @@ import QuizValidation, {
 import QuizNavigation from "./quiz-progress-bar-components/QuizNavigation.js";
 import QuizProgressBar from "./quiz-progress-bar-components/QuizProgressBar.js";
 import QuizStepTimers from "./quiz-progress-bar-components/QuizStepTimers.js";
+import { startLoader } from "../loader.js";
 
 export default class QuizCoordinator {
   #trackedSteps = null;
@@ -12,6 +13,8 @@ export default class QuizCoordinator {
   #quizValidation = null;
   #quizTimers = null;
   #activeCardStack = null;
+  #stages = []; // [{ title, weight }]
+  #stageOf = new Map(); // страница -> номер её этапа
 
   constructor({ steps }) {
     this.steps = Array.from(steps);
@@ -23,6 +26,8 @@ export default class QuizCoordinator {
     this.#trackedSteps = this.steps.filter(
       (step) => step.dataset.hideProgress !== "true",
     );
+
+    this.#buildStages();
 
     this.#quizNavigation = new QuizNavigation({
       steps: this.steps,
@@ -48,18 +53,12 @@ export default class QuizCoordinator {
     });
 
     const behaviors = [
-      // 1. Разблокировка кнопки через N мс
       {
-        match: (step) => !!step.dataset.unlockAfter,
+        match: (step) => !!step.dataset.loader,
         handle: (step, schedule) => {
-          const delay = Number(step.dataset.unlockAfter);
-          const btn = step.querySelector(CONTINUE_BTN_SELECTOR);
-
-          if (btn && delay) {
-            schedule(() => {
-              btn.disabled = false;
-            }, delay);
-          }
+          schedule(() => {
+            startLoader();
+          }, 100);
         },
       },
 
@@ -74,27 +73,6 @@ export default class QuizCoordinator {
               this.#advance();
             }, delay);
           }
-        },
-      },
-
-      // 3. Последовательная анимация отметки чекбоксов
-      {
-        match: (step) => !!step.querySelector("[data-js-auto-check]"),
-        handle: (step, schedule) => {
-          const list = step.querySelector("[data-js-auto-check]");
-          const interval = Number(list.dataset.checkInterval) || 600;
-          const checkboxes = [...list.querySelectorAll("input[type=checkbox]")];
-
-          checkboxes.forEach((checkbox, index) => {
-            checkbox.checked = false;
-
-            schedule(
-              () => {
-                checkbox.checked = true;
-              },
-              interval * (index + 1),
-            );
-          });
         },
       },
     ];
@@ -177,8 +155,15 @@ export default class QuizCoordinator {
   // весит столько же, сколько в ней карточек, а не 1 — и передаёт готовые
   // числа в QuizProgressBar, которая сама ничего не вычисляет.
   #updateProgress(newStep) {
+    // Страницы с data-hide-progress ничего не меняют: блок скрыт, значения
+    // остаются как на последнем учитываемом шаге (и нет скачка 29/29 на старте)
+    if (!this.#stageOf.has(newStep)) return;
+
     const { current, total } = this.#computeProgress(newStep);
     this.#quizProgressBar.updateProgressBar(current, total);
+
+    const stage = this.#computeStage(newStep);
+    if (stage) this.#quizProgressBar.updateStages(stage);
   }
 
   #computeProgress(newStep) {
@@ -187,25 +172,75 @@ export default class QuizCoordinator {
     let passedCurrent = false;
 
     this.#trackedSteps.forEach((step) => {
-      const cardContainer = step.querySelector("[data-js-card-container]");
-      const cardCount = cardContainer
-        ? cardContainer.querySelectorAll("[data-js-quiz-card]").length
-        : 1;
-
-      total += cardCount;
+      const weight = this.#getWeight(step);
+      total += weight;
 
       if (step === newStep) {
         passedCurrent = true;
-        // позиция внутри текущей страницы: номер карточки, либо просто 1
         current += this.#activeCardStack
           ? this.#activeCardStack.currentIndex + 1
           : 1;
       } else if (!passedCurrent) {
-        current += cardCount; // страница пройдена целиком
+        current += weight;
       }
     });
 
     return { current, total };
+  }
+
+  #getWeight(step) {
+    const container = step.querySelector("[data-js-card-container]");
+    return container
+      ? container.querySelectorAll("[data-js-quiz-card]").length
+      : 1;
+  }
+
+  #buildStages() {
+    this.#stages = [];
+    this.#stageOf = new Map();
+
+    this.#trackedSteps.forEach((step, i) => {
+      // новый этап: у первой страницы всегда, дальше там, где есть атрибут
+      // (hasAttribute, а не значение: пустой атрибут тоже начинает этап)
+      if (i === 0 || step.hasAttribute("data-progress-stage")) {
+        this.#stages.push({
+          title: step.dataset.progressStage || "",
+          weight: 0,
+        });
+      }
+
+      const stageIndex = this.#stages.length - 1;
+      this.#stages[stageIndex].weight += this.#getWeight(step);
+      this.#stageOf.set(step, stageIndex);
+    });
+  }
+
+  #computeStage(newStep) {
+    const stageIndex = this.#stageOf.get(newStep);
+    if (stageIndex === undefined) return null; // страница не учитывается
+
+    let done = 0;
+    for (const step of this.#trackedSteps) {
+      if (this.#stageOf.get(step) !== stageIndex) continue;
+
+      if (step === newStep) {
+        // текущая страница: номер карточки или 1
+        done += this.#activeCardStack
+          ? this.#activeCardStack.currentIndex + 1
+          : 1;
+        break;
+      }
+      done += this.#getWeight(step); // страницы этапа до текущей пройдены целиком
+    }
+
+    const { title, weight } = this.#stages[stageIndex];
+
+    return {
+      index: stageIndex,
+      count: this.#stages.length,
+      fill: (done / weight) * 100,
+      title,
+    };
   }
 
   #scrollEnabled = true;
@@ -233,12 +268,12 @@ export default class QuizCoordinator {
 
     let visible;
 
-    if (page.dataset.hideBack === 'true') {
-      visible = false;                                   // шаги, где кнопка не нужна
+    if (page.dataset.hideBack === "true") {
+      visible = false; // шаги, где кнопка не нужна
     } else if (this.#activeCardStack && !this.#activeCardStack.isFirstStep) {
-      visible = true;                                    // назад можно на предыдущую карточку
+      visible = true; // назад можно на предыдущую карточку
     } else {
-      visible = !this.#quizNavigation.isFirstStep;       // иначе на предыдущую страницу
+      visible = !this.#quizNavigation.isFirstStep; // иначе на предыдущую страницу
     }
 
     this.#quizProgressBar.setBackButtonVisible(visible);
