@@ -127,10 +127,12 @@ export default class QuizValidation {
 
     if (!step) return;
 
-    if (group) {
-      this.#setSingleSelect(group, input);
-      this.#setMaxLimit(group, input);
-    }
+    // область: группа, а если групп нет, то шаг/карточка
+    const scope = group ?? step;
+
+    this.#handleExclusive(scope, input);
+    this.#setSingleSelect(scope, input);
+    this.#setMaxLimit(scope, input);
 
     this.#updateContinueButton(step);
 
@@ -203,6 +205,24 @@ export default class QuizValidation {
       }
     }
   };
+
+  /** Исключающий вариант ("Ничего из вышеперечисленного") */
+  #handleExclusive(scope, changedInput) {
+    // только для чекбоксов, и только когда вариант отмечают
+    if (changedInput.type !== "checkbox" || !changedInput.checked) return;
+
+    const isExclusive = !!changedInput.closest("[data-js-quiz-exclusive]");
+
+    this.#getGroupInputs(scope).forEach((input) => {
+      if (input === changedInput) return;
+
+      const inputIsExclusive = !!input.closest("[data-js-quiz-exclusive]");
+
+      // отметили исключающий: снимаем все остальные;
+      // отметили обычный: снимаем исключающий
+      if (isExclusive || inputIsExclusive) input.checked = false;
+    });
+  }
 
   #resetInputs() {
     const inputs = this.steps.flatMap((step) => [
