@@ -1,6 +1,6 @@
 ОБНОВЛЕНИЕ 10.11.2026
 	
-Added stages in progress bar
+Added exclusive button
 
 
 
